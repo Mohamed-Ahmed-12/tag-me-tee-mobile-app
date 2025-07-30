@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useContext, useState, useCallback } from 'react';
+import React, { useContext, useState, useCallback, useEffect } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -13,7 +13,7 @@ import {
     KeyboardAvoidingView, // Consider using this for better keyboard handling
     Platform // To check platform for KeyboardAvoidingView behavior
 } from 'react-native';
-import { MyContext } from "../src/context/AuthContext";
+import { AuthContext } from "../src/context/AuthContext";
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import AppText from '../src/components/AppText';
@@ -24,7 +24,7 @@ import { COLORS, FONT_SIZES } from '../assets/styles/stylesheet';
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { loading, login, errors } = useContext(MyContext); // Destructure directly
+    const { isLoading, login, errors } = useContext(AuthContext);
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState(""); // Separate state for each input
     const [password, setPassword] = useState("");
@@ -58,21 +58,12 @@ export default function LoginScreen() {
             return;
         }
 
-        try {
-            // Call login function
-            const isSuccess = await login({ username: trimmedUsername, password: trimmedPassword })
-            if (isSuccess) {
-                router.replace('/profile'); // Navigate on successful login
-            }
-
-
-        } catch (error) {
-            console.error('Login error:', error);
-            // More specific error messages could be handled based on 'error.code' or 'error.message'
-            Alert.alert('Login Failed', 'Invalid credentials or server error. Please try again.');
+        // Call login function
+        const isSuccess = await login({ username: trimmedUsername, password: trimmedPassword })
+        if (isSuccess) {
+            router.replace('/profile'); // Navigate on successful login
         }
     }, [username, password, login, router]); // Dependencies for useCallback
-
 
     // Determine if the button should be active (not disabled)
     const isButtonActive = username.trim() !== '' && password.trim() !== '';
@@ -170,12 +161,12 @@ export default function LoginScreen() {
                         onPress={handleSubmit}
                         style={[
                             profileStyles.fullWidthButton,
-                            loading && profileStyles.buttonDisabled,
+                            isLoading && profileStyles.buttonDisabled,
                             !isButtonActive && profileStyles.buttonInactive // Apply inactive style
                         ]}
-                        disabled={loading || !isButtonActive} // Disable if loading or inputs are empty
+                        disabled={isLoading || !isButtonActive} // Disable if isLoading or inputs are empty
                     >
-                        {loading ? (
+                        {isLoading ? (
                             <ActivityIndicator size="small" color={COLORS.text} /> // White spinner on button
                         ) : (
                             <AppText style={profileStyles.buttonText}>Log in</AppText>

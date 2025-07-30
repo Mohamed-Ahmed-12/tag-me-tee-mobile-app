@@ -11,14 +11,14 @@ import {
     KeyboardAvoidingView,
     Platform
 } from 'react-native';
-import { MyContext } from '../../src/context/AuthContext';
+import { AuthContext } from '../../src/context/AuthContext';
 import AppText from '../../src/components/AppText';
 import { COLORS , FONT_SIZES } from '../../assets/styles/stylesheet';
 
 
 
 export default function EditProfile() {
-    const { profileData, userProfile , updateUserProfile} = useContext(MyContext);
+    const { profileData, userProfile , updateUserProfile} = useContext(AuthContext);
     const [isLoadingInitialData, setIsLoadingInitialData] = useState(true); // New state for initial data loading
     const [isSubmitting, setIsSubmitting] = useState(false); // Renamed from 'loading' for clarity
 

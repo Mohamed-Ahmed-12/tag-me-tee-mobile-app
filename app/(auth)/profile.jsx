@@ -9,30 +9,15 @@ import {
     StatusBar,
 } from 'react-native';
 import { AntDesign, Ionicons } from '@expo/vector-icons';
-import { MyContext } from '../../src/context/AuthContext';
+import { AuthContext } from '../../src/context/AuthContext';
 import { Link } from 'expo-router';
 import { API_BASE_URL } from '@env';
 import AppText from '../../src/components/AppText';
 import { FONT_SIZES, COLORS } from '../../assets/styles/stylesheet';
-import { useRouter } from 'expo-router';
-
 
 export default function QRProfileScreen() {
-    const { userProfile, profileData, tokens } = useContext(MyContext)
+    const { profileData } = useContext(AuthContext)
     const [isLinkVisible, setIsLinkVisible] = useState(false);
-    const router = useRouter()
-
-
-    useEffect(() => {
-        async function handleLogin() {
-            if (tokens) {
-                const isfail = await userProfile();
-                if (isfail) router.replace('/login');
-            }
-        }
-        handleLogin();
-    }, [tokens, userProfile]);
-
 
     return (
         <SafeAreaView style={styles.container}>

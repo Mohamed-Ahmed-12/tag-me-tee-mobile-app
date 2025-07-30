@@ -1,12 +1,12 @@
 import React, { useContext } from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { MyContext } from '../context/AuthContext';
+import { AuthContext } from '../context/AuthContext';
 import AppText from './AppText';
 import { COLORS, FONT_SIZES } from '../../assets/styles/stylesheet';
 
 export default function CustomDrawerContent(props) {
-    const { logout, profileData } = useContext(MyContext);
+    const { logout, profileData } = useContext(AuthContext);
     return (
         <DrawerContentScrollView {...props} contentContainerStyle={styles.container}>
             <View>
