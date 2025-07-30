@@ -1,5 +1,6 @@
 {
   "expo": {
+    "scheme": "tagmetee",
     "name": "QRCodeApp",
     "slug": "QRCodeApp",
     "version": "1.0.0",
@@ -7,6 +8,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -20,6 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.yourcompany.qrcodeapp",
       "edgeToEdgeEnabled": true
     },
     "web": {

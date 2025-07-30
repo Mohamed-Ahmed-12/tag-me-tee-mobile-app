@@ -1,0 +1,22 @@
+your-project/
+├── .expo/                  # Expo config files (keep as is)
+├── assets/                 # Static assets
+│   ├── fonts/              # Custom fonts
+│   ├── images/             # App images
+│   └── icons/              # SVG icons
+├── src/                    # Main source code
+│   ├── components/         # Reusable components
+│   │   ├── common/         # Button, Input, etc.
+│   │   └── ui/             # Custom UI elements
+│   ├── screens/            # Screen components
+│   ├── navigation/         # React Navigation setup
+│   ├── utils/              # Helpers & utilities
+│   ├── services/           # API/services layer
+│   ├── context/            # React context providers
+│   ├── hooks/              # Custom hooks
+│   └── config/             # App configuration
+├── App.jsx                 # Main app entry (move here)
+├── index.js                # Entry point (keep in root)
+├── package.json
+├── .gitignore
+└── app.json
