@@ -3,7 +3,6 @@ import {
     ActivityIndicator,
     Alert,
     StyleSheet,
-    Text,
     TextInput,
     View,
     TouchableOpacity,
@@ -13,199 +12,199 @@ import {
 } from 'react-native';
 import { AuthContext } from '../../src/context/AuthContext';
 import AppText from '../../src/components/AppText';
-import { COLORS , FONT_SIZES } from '../../assets/styles/stylesheet';
-
-
+import { COLORS, FONT_SIZES } from '../../assets/styles/stylesheet';
+import ProtectedRoute from '../../src/components/ProtectedRoute';
 
 export default function EditProfile() {
-    const { profileData, userProfile , updateUserProfile} = useContext(AuthContext);
-    const [isLoadingInitialData, setIsLoadingInitialData] = useState(true); // New state for initial data loading
-    const [isSubmitting, setIsSubmitting] = useState(false); // Renamed from 'loading' for clarity
+    const {
+        isLoading,
+        profileData,
+        userProfile,
+        updateUserProfile
+    } = useContext(AuthContext);
 
-    const [uid , setUID] = useState(null);
-    const [username, setUsername] = useState("");
-    const [email, setEmail] = useState("");
-    const [link, setLink] = useState("");
+    const [isLoadingInitialData, setIsLoadingInitialData] = useState(true);
+    const [formData, setFormData] = useState({
+        username: '',
+        email: '',
+        link: ''
+    });
+    const [formErrors, setFormErrors] = useState({
+        username: false,
+        email: false,
+        link: false
+    });
 
-    // State for input errors
-    const [usernameError, setUsernameError] = useState(false);
-    const [emailError, setEmailError] = useState(false);
-    const [linkError, setLinkError] = useState(false);
-
-    // Effect to populate input fields when profileData is available
+    // Initialize form data
     useEffect(() => {
-        if (profileData) {
-            setUID(profileData.id);
-            setUsername(profileData.username || "");
-            setEmail(profileData.email || "");
-            setLink(profileData.link || "");
-            setIsLoadingInitialData(false); // Data loaded, stop initial loading
-        } else {
-            // If profileData is not available, try to fetch it
-            userProfile().then(() => {
-                setIsLoadingInitialData(false); // Stop loading after fetch attempt
-            }).catch(() => {
+        const loadProfileData = async () => {
+            try {
+                if (!profileData) {
+                    await userProfile();
+                }
+
+                if (profileData) {
+                    setFormData({
+                        username: profileData.username || '',
+                        email: profileData.email || '',
+                        link: profileData.link || ''
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to load profile data:", error);
+                Alert.alert("Error", "Failed to load profile data");
+            } finally {
                 setIsLoadingInitialData(false);
-            });
-        }
+            }
+        };
+
+        loadProfileData();
     }, [profileData, userProfile]);
 
-     const handleSubmit = useCallback(async () => {
-        const trimmedUsername = username.trim();
-        const trimmedEmail = email.trim();
-        const trimmedLink = link.trim();
+    const handleInputChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormErrors(prev => ({ ...prev, [field]: false }));
+    };
 
-        let hasError = false;
-        if (!trimmedUsername) {
-            setUsernameError(true);
-            hasError = true;
-        } else {
-            setUsernameError(false);
-        }
+    const validateForm = () => {
+        const newErrors = {
+            username: !formData.username.trim(),
+            email: !formData.email.trim(),
+            link: !formData.link.trim()
+        };
 
-        if (!trimmedEmail) {
-            setEmailError(true);
-            hasError = true;
-        } else {
-            setEmailError(false);
-        }
+        setFormErrors(newErrors);
+        return !Object.values(newErrors).some(error => error);
+    };
 
-        if (!trimmedLink) {
-            setLinkError(true);
-            hasError = true;
-        } else {
-            setLinkError(false);
-        }
-
-        if (hasError) {
+    const handleSubmit = useCallback(async () => {
+        if (!validateForm()) {
             Alert.alert('Error', 'Please fill in all required fields.');
             return;
         }
 
-        setIsSubmitting(true);
-
         try {
-            // Call the updateUserProfile function from context
-            await updateUserProfile({
-                username: trimmedUsername,
-                email: trimmedEmail,
-                link: trimmedLink, // Make sure 'link' is the correct key expected by your backend via updateUserProfile
-            },profileData.id);
+            const success = await updateUserProfile({
+                username: formData.username.trim(),
+                email: formData.email.trim(),
+                link: formData.link.trim()
+            }, profileData.id);
 
+            if (success) {
+                Alert.alert("Success", "Profile updated successfully!");
+            }
         } catch (error) {
-            console.error("Error during profile update submission:", error);
-            Alert.alert("Error", "An unexpected error occurred during update.");
-        } finally {
-            setIsSubmitting(false);
+            console.error("Profile update failed:", error);
+            // Errors are already handled in AuthContext
         }
-    }, [username, email, link, updateUserProfile]); // Add updateUserProfile to dependencies
+    }, [formData, profileData?.id, updateUserProfile]);
 
-    // Determine if the "Apply Changes" button should be active
-    const isButtonActive = username.trim() !== '' && email.trim() !== '' && link.trim() !== '';
 
-    if (isLoadingInitialData) {
-        return (
-            <View style={profileStyles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <AppText style={profileStyles.loadingText}>Loading Profile...</AppText>
-            </View>
-        );
-    }
 
     return (
-        <KeyboardAvoidingView
-            style={profileStyles.fullScreenContainer}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-        >
-            <ScrollView
-                contentContainerStyle={profileStyles.scrollViewContent}
-                keyboardShouldPersistTaps="handled"
-            >
-                <View style={profileStyles.profileCard}>
-                    <AppText style={profileStyles.title}>Edit Your Profile</AppText>
-                    {/* --- */}
-
-                    <AppText style={profileStyles.label}>Username:</AppText>
-                    <TextInput
-                        style={[
-                            profileStyles.input,
-                            usernameError && profileStyles.inputError
-                        ]}
-                        placeholderTextColor={COLORS.placeholder}
-                        value={username}
-                        onChangeText={(text) => {
-                            setUsername(text);
-                            setUsernameError(false); // Clear error on change
-                        }}
-                        placeholder="Enter your username"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    {usernameError && <AppText style={profileStyles.errorMessage}>Username is required.</AppText>}
-
-                    <AppText style={profileStyles.label}>Email Address:</AppText>
-                    <TextInput
-                        style={[
-                            profileStyles.input,
-                            emailError && profileStyles.inputError
-                        ]}
-                        placeholderTextColor={COLORS.placeholder}
-                        value={email}
-                        onChangeText={(text) => {
-                            setEmail(text);
-                            setEmailError(false); // Clear error on change
-                        }}
-                        placeholder="Enter your email address"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    {emailError && <AppText style={profileStyles.errorMessage}>Email is required.</AppText>}
-
-                    <AppText style={profileStyles.label}>QR Code Link:</AppText>
-                    <TextInput
-                        style={[
-                            profileStyles.input,
-                            linkError && profileStyles.inputError
-                        ]}
-                        placeholderTextColor={COLORS.placeholder}
-                        value={link}
-                        onChangeText={(text) => {
-                            setLink(text);
-                            setLinkError(false); // Clear error on change
-                        }}
-                        placeholder="Enter your QR code link (e.g., your website, portfolio)"
-                        keyboardType="url"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                    {linkError && <AppText style={profileStyles.errorMessage}>QR Code Link is required.</AppText>}
-
-                    {/* --- */}
-                    <TouchableOpacity
-                        onPress={handleSubmit}
-                        style={[
-                            profileStyles.fullWidthButton,
-                            isSubmitting && profileStyles.buttonDisabled,
-                            !isButtonActive && profileStyles.buttonInactive
-                        ]}
-                        disabled={isSubmitting || !isButtonActive}
-                    >
-                        {isSubmitting ? (
-                            <ActivityIndicator size="small" color={COLORS.text} />
-                        ) : (
-                            <AppText style={profileStyles.buttonText}>Apply Changes</AppText>
-                        )}
-                    </TouchableOpacity>
-
+        <ProtectedRoute>
+            {isLoadingInitialData ?
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <AppText style={styles.loadingText}>Loading Profile...</AppText>
                 </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                :
+                <KeyboardAvoidingView
+                    style={styles.fullScreenContainer}
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+                >
+                    <ScrollView
+                        contentContainerStyle={styles.scrollViewContent}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <View style={styles.profileCard}>
+                            <AppText style={styles.title}>Edit Your Profile</AppText>
+
+                            {/* Error display from context */}
+                            {/* {errors && (
+                                <View style={styles.errorContainer}>
+                                    <AppText style={styles.errorText}>{errors}</AppText>
+                                </View>
+                            )} */}
+
+                            <AppText style={styles.label}>Username:</AppText>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    formErrors.username && styles.inputError
+                                ]}
+                                placeholderTextColor={COLORS.placeholder}
+                                value={formData.username}
+                                onChangeText={(text) => handleInputChange('username', text)}
+                                placeholder="Enter your username"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            {formErrors.username && (
+                                <AppText style={styles.errorMessage}>Username is required.</AppText>
+                            )}
+
+                            <AppText style={styles.label}>Email Address:</AppText>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    formErrors.email && styles.inputError
+                                ]}
+                                placeholderTextColor={COLORS.placeholder}
+                                value={formData.email}
+                                onChangeText={(text) => handleInputChange('email', text)}
+                                placeholder="Enter your email address"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            {formErrors.email && (
+                                <AppText style={styles.errorMessage}>Email is required.</AppText>
+                            )}
+
+                            <AppText style={styles.label}>QR Code Link:</AppText>
+                            <TextInput
+                                style={[
+                                    styles.input,
+                                    formErrors.link && styles.inputError
+                                ]}
+                                placeholderTextColor={COLORS.placeholder}
+                                value={formData.link}
+                                onChangeText={(text) => handleInputChange('link', text)}
+                                placeholder="Enter your QR code link"
+                                keyboardType="url"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                            {formErrors.link && (
+                                <AppText style={styles.errorMessage}>QR Code Link is required.</AppText>
+                            )}
+
+                            <TouchableOpacity
+                                onPress={handleSubmit}
+                                style={[
+                                    styles.fullWidthButton,
+                                    isLoading && styles.buttonDisabled,
+                                    (!formData.username || !formData.email || !formData.link) && styles.buttonInactive
+                                ]}
+                                disabled={isLoading || !formData.username || !formData.email || !formData.link}
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator size="small" color={COLORS.text} />
+                                ) : (
+                                    <AppText style={styles.buttonText}>Apply Changes</AppText>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            }
+        </ProtectedRoute>
+
     );
 }
-
-const profileStyles = StyleSheet.create({
+const styles = StyleSheet.create({
     fullScreenContainer: {
         flex: 1,
         backgroundColor: COLORS.background,

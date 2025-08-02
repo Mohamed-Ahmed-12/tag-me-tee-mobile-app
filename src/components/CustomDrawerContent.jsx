@@ -17,8 +17,8 @@ export default function CustomDrawerContent(props) {
             </View>
 
             <View style={styles.footer}>
-                <Button title="Logout" onPress={logout}  />
-                <Text style={styles.note}>Thanks for using our app!</Text>
+                <Button title="Logout" onPress={logout}  color={COLORS.background}/>
+                <AppText style={styles.note}>Thanks for using our app!</AppText>
             </View>
         </DrawerContentScrollView>
     );
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     },
     welcome: {
         fontSize: FONT_SIZES.large,
-        color: COLORS.primary
+        color: COLORS.background
     },
     footer: {
         marginTop: 20,
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     },
     note: {
         marginTop: 10,
-        fontSize: 14,
+        fontSize: FONT_SIZES.small,
         color: '#888',
     },
 });

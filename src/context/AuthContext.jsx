@@ -1,227 +1,201 @@
-import React, { createContext, useCallback, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { API_BASE_URL } from '@env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-
+import { jwtDecode } from 'jwt-decode'
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const router = useRouter();
     const [tokens, setTokens] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isProfileLoading, setIsProfileLoading] = useState(false);
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [profileData, setProfileData] = useState(null);
-    const [errors, setErrors] = useState(null);
+    const [isLoading, setLoading] = useState(false);
+    const [profileData, setProfileData] = useState(null)
+    const router = useRouter();
 
-    // Clear all auth-related data
-    const clearAuthData = async () => {
+    // Check if token is expired
+    const isTokenExpired = useCallback((token) => {
+        if (!token) return true;
         try {
-            await AsyncStorage.removeItem('tokens');
-            setTokens(null);
-            setProfileData(null);
-            setErrors(null);
-        } catch (error) {
-            console.error("Failed to clear auth data:", error);
-            throw error;
-        }
-    };
+            // Check if it's a valid JWT structure first
+            if (token.split('.').length !== 3) return true;
 
-    const logout = async () => {
-        setIsLoading(true);
-        try {
-            await clearAuthData();
-            router.replace('/login');
+            const decoded = jwtDecode(token);
+            // Add buffer (e.g., 5 minutes) to prevent edge cases
+            return (decoded.exp * 1000) < (Date.now() + 300000);
         } catch (error) {
-            console.error("Logout failed:", error);
-            Alert.alert("Error", "An error occurred while logging out. Please try again.");
-        } finally {
-            setIsLoading(false);
+            console.error("Error decoding token:", error);
+            return true;
         }
-    };
+    }, []);
 
     const login = async (inputData) => {
-        setIsLoading(true);
-        setErrors(null);
-        
+        setLoading(true);
         try {
-            const url = `${API_BASE_URL}/login/`;
-            const response = await fetch(url, {
-                method: "POST",
+            const response = await fetch(`${API_BASE_URL}/login/`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(inputData),
+                body: JSON.stringify(inputData)
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Login failed:", response.status, errorData);
-                setErrors(errorData?.detail || "Invalid credentials");
-                Alert.alert("Login Failed", errorData.message || "Please check your credentials.");
-                return false;
+            if (response.status === 200) {
+                const data = await response.json();
+                setTokens(data)
+                // Call userProfile manually using the new token
+                await fetchUserProfileWithToken(data.access);
+                return true
             }
-
-            const data = await response.json();
-            await AsyncStorage.setItem('tokens', JSON.stringify(data));
-            setTokens(data);
-            await userProfile(); // Fetch user profile immediately after login
-            return true;
+            return false
         } catch (error) {
-            console.error("Network error or request failed:", error);
-            setErrors("Network error");
-            Alert.alert("Error", "Could not connect to the server. Please check your internet connection.");
-            return false;
+            console.error("Login error:", error);
+            Alert.alert('Error', 'Failed to login')
+            return false
         } finally {
-            setIsLoading(false);
+            setLoading(false);
+        }
+    }
+
+    const logout = useCallback(() => {
+        setTokens(null);
+        setProfileData(null)
+
+    }, [])
+
+    const userProfile = useCallback(async () => {
+        if (!tokens?.access || isTokenExpired(tokens?.access)) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/me/`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${tokens.access}`,
+                },
+            });
+
+            if (response.status === 200) {
+                const data = await response.json();
+                setProfileData(data);
+            }
+        } catch (err) {
+            console.error("error", err);
+            Alert.alert('Error', 'Failed to get user profile');
+        }
+    }, [tokens]);
+
+    const fetchUserProfileWithToken = async (accessToken) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/me/`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+
+            if (response.status === 200) {
+                const data = await response.json();
+                setProfileData(data);
+            }
+        } catch (err) {
+            console.error("Profile fetch error after login:", err);
+            Alert.alert('Error', 'Failed to get user profile');
         }
     };
 
-    const userProfile = useCallback(async () => {
-        if (!tokens?.access) return;
-        
-        setIsProfileLoading(true);
-        setErrors(null);
-        
+    const updateUserProfile = useCallback(async (updatedFields, uid) => {
+
+        if (!tokens?.access || isTokenExpired(tokens?.access)) return;
+        setLoading(true)
         try {
-            const url = `${API_BASE_URL}/users/me/`;
+            const url = `${API_BASE_URL}/users/${uid}/`;
             const response = await fetch(url, {
-                method: "GET",
+                method: "PUT",
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${tokens.access}`
                 },
+                body: JSON.stringify(updatedFields)
             });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                if (response.status === 401) {
-                    await clearAuthData();
-                    Alert.alert("Session Expired", "Your session has expired. Please login again.");
-                    router.replace('/login');
-                    return false;
-                }
-                throw new Error(errorData.message || "Failed to fetch profile");
+            console.log(response)
+            if (response.status === 200) {
+                const data = await response.json();
+                setProfileData(data);
+                return true;
             }
-
-            const data = await response.json();
-            setProfileData(data);
-            return true;
-        } catch (error) {
-            console.error("Fetch profile failed:", error);
-            setErrors(error.message);
-            Alert.alert("Error", "Failed to fetch profile data. Please try again.");
             return false;
-        } finally {
-            setIsProfileLoading(false);
-        }
-    }, [tokens, router]);
-
-    const updateUserProfile = async (updatedFields, uid) => {
-        setIsUpdating(true);
-        setErrors(null);
-        
-        try {
-            const url = `${API_BASE_URL}/users/${uid}/`;
-            const response = await fetch(url, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokens?.access}`
-                },
-                body: JSON.stringify(updatedFields),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Failed to update profile");
-            }
-
-            const updatedData = await response.json();
-            setProfileData(updatedData);
-            Alert.alert("Success", "Profile updated successfully!");
-            return true;
         } catch (error) {
             console.error("Update profile failed:", error);
-            setErrors(error.message);
             Alert.alert("Error", `Failed to update profile: ${error.message}`);
             return false;
         } finally {
-            setIsUpdating(false);
+            setLoading(false)
         }
-    };
+    }, [tokens]);
 
-    const refreshTokens = async () => {
-        if (!tokens?.refresh) return false;
-        
+    const refreshToken = useCallback(async () => {
+        if (!tokens?.refresh) return;
+
         try {
-            const url = `${API_BASE_URL}/token/refresh/`;
-            const response = await fetch(url, {
-                method: "POST",
+            const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ refresh: tokens.refresh }),
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to refresh tokens");
+            if (response.status === 200) {
+                const data = await response.json();
+                setTokens(prev => ({
+                    ...prev,
+                    access: data.access,
+                }));
+            } else {
+                logout(); // force logout if refresh fails
             }
-
-            const newTokens = await response.json();
-            await AsyncStorage.setItem('tokens', JSON.stringify(newTokens));
-            setTokens(newTokens);
-            return true;
         } catch (error) {
-            console.error("Token refresh failed:", error);
-            await clearAuthData();
-            return false;
+            console.error("Refresh token error:", error);
+            logout();
         }
-    };
+    }, [tokens?.refresh, logout]);
 
-    // Initialize auth state from storage
     useEffect(() => {
-        const loadUserFromStorage = async () => {
-            setIsLoading(true);
-            try {
-                const storedTokens = await AsyncStorage.getItem('tokens');
-                if (storedTokens) {
-                    const parsedTokens = JSON.parse(storedTokens);
-                    setTokens(parsedTokens);
-                    await userProfile();
-                }else{
-                    await clearAuthData();
-                    router.replace('/login')
-                    
-                }
-            } catch (error) {
-                console.error("Failed to load tokens from storage", error);
-                await clearAuthData();
-            } finally {
-                setIsLoading(false);
+        const checkAndRefreshToken = async () => {
+            if (tokens?.access && isTokenExpired(tokens.access)) {
+                await refreshToken();
             }
         };
 
-        loadUserFromStorage();
-    }, [userProfile]);
+        const interval = setInterval(checkAndRefreshToken, 23.5 * 60 * 60 * 1000); // 23.5 hours in milliseconds
+        return () => clearInterval(interval);
+    }, [refreshToken]); // remove tokens from deps to avoid re-running on setTokens
+
+
+
+
+    const contextValue = useMemo(() => ({
+        isLoading,
+        login,
+        tokens,
+        userProfile,
+        profileData,
+        updateUserProfile,
+        logout
+    }), [
+        isLoading,
+        login,
+        tokens,
+        userProfile,
+        profileData,
+        updateUserProfile,
+        logout
+    ]);
 
     return (
         <AuthContext.Provider
-            value={{
-                tokens,
-                profileData,
-                errors,
-                isLoading,
-                isProfileLoading,
-                isUpdating,
-                login,
-                logout,
-                userProfile,
-                updateUserProfile,
-                refreshTokens,
-                clearAuthData,
-            }}
+            value={contextValue}
         >
             {children}
         </AuthContext.Provider>

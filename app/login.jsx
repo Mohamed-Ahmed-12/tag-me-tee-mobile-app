@@ -24,7 +24,7 @@ import { COLORS, FONT_SIZES } from '../assets/styles/stylesheet';
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { isLoading, login, errors } = useContext(AuthContext);
+    const { login, isLoading, tokens, profileData } = useContext(AuthContext);
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState(""); // Separate state for each input
     const [password, setPassword] = useState("");
@@ -59,15 +59,23 @@ export default function LoginScreen() {
         }
 
         // Call login function
-        const isSuccess = await login({ username: trimmedUsername, password: trimmedPassword })
+        const isSuccess = await login({ username: trimmedUsername, password: trimmedPassword });
         if (isSuccess) {
-            router.replace('/profile'); // Navigate on successful login
+            router.push('/profile');
+        } else {
+            Alert.alert('Error', 'Invalid username or password.');
         }
+
+
     }, [username, password, login, router]); // Dependencies for useCallback
 
     // Determine if the button should be active (not disabled)
     const isButtonActive = username.trim() !== '' && password.trim() !== '';
 
+    useEffect(() => {
+        console.log('tokens', tokens)
+        console.log('profileData', profileData)
+    }, [tokens, profileData])
     return (
         <KeyboardAvoidingView // Use KeyboardAvoidingView for better keyboard management
             style={profileStyles.fullScreenContainer}
@@ -91,7 +99,7 @@ export default function LoginScreen() {
                     <AppText style={profileStyles.text}>
                         Log in to customize your QR code and manage your digital identity
                     </AppText>
-                    {/* Error */}
+                    {/* Error
                     {errors &&
                         <AppText style={{
                             fontSize: FONT_SIZES.small,
@@ -99,7 +107,7 @@ export default function LoginScreen() {
                             textAlign: 'end'
                         }}>{errors}
                         </AppText>
-                    }
+                    } */}
 
                     <AppText style={profileStyles.label}>Username:</AppText>
                     <TextInput
